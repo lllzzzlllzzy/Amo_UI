@@ -7,6 +7,7 @@ import TokenGate from '../../components/admin/TokenGate'
 import GenerateForm from '../../components/admin/GenerateForm'
 import GeneratedList from '../../components/admin/GeneratedList'
 import CardTable from '../../components/admin/CardTable'
+import StatsBar from '../../components/admin/StatsBar'
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(!!getToken())
@@ -56,26 +57,45 @@ export default function AdminPage() {
               <span className="text-[#6a6a6a] text-sm">管理后台</span>
             </div>
             {authed && (
-              <button
-                onClick={handleLogout}
-                className="text-sm text-[#6a6a6a] hover:text-[#222] transition"
-              >
-                退出登录
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={loadCards}
+                  className="w-9 h-9 rounded-full bg-[#f2f2f2] flex items-center justify-center hover:bg-[#e5e5e5] active:scale-95 transition"
+                  title="刷新数据"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a6a6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                  </svg>
+                </button>
+                <div className="w-px h-4 bg-[#e5e5e5]" />
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-[#6a6a6a] hover:text-[#222] transition"
+                >
+                  退出登录
+                </button>
+              </div>
             )}
           </div>
         </header>
 
-        {/* Content */}
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
-          {/* Top row: form + generated result */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <GenerateForm
-              onGenerated={result => setLastResult(result)}
-              onRefreshList={loadCards}
-            />
-            <GeneratedList result={lastResult} />
-          </div>
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8">
+          {/* Stats overview */}
+          <StatsBar cards={cards} loading={cardsLoading} />
+
+          {/* Generate section */}
+          <section>
+            <h2 className="text-[22px] font-semibold text-[#222] tracking-[-0.44px] mb-4">生成卡密</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <GenerateForm
+                onGenerated={result => setLastResult(result)}
+                onRefreshList={loadCards}
+              />
+              <GeneratedList result={lastResult} />
+            </div>
+          </section>
 
           {/* Card list */}
           <CardTable cards={cards} loading={cardsLoading} />

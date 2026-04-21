@@ -3,6 +3,13 @@ import { formatTimestamp } from '../../lib/utils'
 import type { Card } from '../../lib/api'
 
 type SortKey = 'used_ratio' | 'created_at' | 'credits'
+type TabKey = 'all' | 'active' | 'inactive'
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'active', label: '已激活' },
+  { key: 'inactive', label: '未激活' },
+]
 
 interface Props {
   cards: Card[]
@@ -10,8 +17,16 @@ interface Props {
 }
 
 export default function CardTable({ cards, loading }: Props) {
+  const [tab, setTab] = useState<TabKey>('all')
   const [sortKey, setSortKey] = useState<SortKey>('created_at')
   const [sortDesc, setSortDesc] = useState(true)
+
+  const activeCount = cards.filter(c => c.used > 0).length
+  const inactiveCount = cards.length - activeCount
+
+  const filtered = tab === 'all' ? cards : cards.filter(c =>
+    tab === 'active' ? c.used > 0 : c.used === 0
+  )
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -22,7 +37,7 @@ export default function CardTable({ cards, loading }: Props) {
     }
   }
 
-  const sorted = [...cards].sort((a, b) => {
+  const sorted = [...filtered].sort((a, b) => {
     let av = 0, bv = 0
     if (sortKey === 'used_ratio') {
       av = a.total > 0 ? a.used / a.total : 0
@@ -55,11 +70,28 @@ export default function CardTable({ cards, loading }: Props) {
       className="bg-white rounded-[20px] p-6"
       style={{ boxShadow: 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px' }}
     >
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h2 className="text-[20px] font-semibold text-[#222] tracking-[-0.18px]">
-          卡密列表
-          {!loading && <span className="text-sm font-normal text-[#6a6a6a] ml-2">共 {cards.length} 张</span>}
-        </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {TABS.map(t => {
+            const count = t.key === 'all' ? cards.length : t.key === 'active' ? activeCount : inactiveCount
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition shrink-0 active:scale-95 ${
+                  tab === t.key
+                    ? 'bg-[#222] text-white'
+                    : 'text-[#6a6a6a] hover:bg-[#f2f2f2] hover:text-[#222]'
+                }`}
+              >
+                {t.label}
+                <span className={`ml-1.5 text-xs ${tab === t.key ? 'text-white/70' : 'text-[#6a6a6a]'}`}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-xs text-[#6a6a6a]">排序：</span>
           <SortBtn label="使用比例" k="used_ratio" />
@@ -70,8 +102,10 @@ export default function CardTable({ cards, loading }: Props) {
 
       {loading ? (
         <div className="py-12 text-center text-sm text-[#6a6a6a]">加载中...</div>
-      ) : cards.length === 0 ? (
-        <div className="py-12 text-center text-sm text-[#6a6a6a]">暂无卡密</div>
+      ) : filtered.length === 0 ? (
+        <div className="py-12 text-center text-sm text-[#6a6a6a]">
+          {tab === 'all' ? '暂无卡密' : tab === 'active' ? '暂无已激活卡密' : '暂无未激活卡密'}
+        </div>
       ) : (
         /* Desktop table */
         <>

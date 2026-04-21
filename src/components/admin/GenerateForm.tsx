@@ -53,7 +53,7 @@ export default function GenerateForm({ onGenerated, onRefreshList }: Props) {
       className="bg-white rounded-[20px] p-6"
       style={{ boxShadow: 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px' }}
     >
-      <h2 className="text-[20px] font-semibold text-[#222] mb-4 tracking-[-0.18px]">生成卡密</h2>
+      <h2 className="text-[20px] font-semibold text-[#222] mb-4 tracking-[-0.18px]">参数设置</h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
         {/* 数量 */}
@@ -131,7 +131,7 @@ export default function GenerateForm({ onGenerated, onRefreshList }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? '生成中...' : '生成卡密'}
         </button>

@@ -32,9 +32,55 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   font-family: 'Airbnb Cereal VF', -apple-system, system-ui, Roboto, 'Helvetica Neue', sans-serif;
   color: #222222;
   background: #ffffff;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+.input-field {
+  width: 100%;
+  border: 1px solid #c1c1c1;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 16px; /* prevent iOS zoom on focus */
+  color: #222222;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input-field:focus {
+  border-color: #222222;
+  box-shadow: 0 0 0 2px rgba(34, 34, 34, 0.1);
+}
+
+/* Prevent iOS zoom on all form inputs */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Smooth scrolling for chat containers */
+.scroll-smooth-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #e5e5e5 transparent;
+}
+.scroll-smooth-y::-webkit-scrollbar {
+  width: 4px;
+}
+.scroll-smooth-y::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-smooth-y::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 2px;
 }
