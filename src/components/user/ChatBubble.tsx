@@ -18,7 +18,7 @@ export default function ChatBubble({ role, content, streaming }: Props) {
       >
         {content}
         {streaming && (
-          <span className="inline-block w-1.5 h-4 bg-[#ff385c] rounded-sm ml-0.5 animate-pulse align-middle" />
+          <span className="inline-block w-1.5 h-4 bg-[#E8334A] rounded-sm ml-0.5 animate-pulse align-middle" />
         )}
       </div>
     </div>

@@ -13,7 +13,7 @@ const FEATURES = [
     unit: '次',
     path: '/analysis',
     icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff385c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E8334A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="16" y1="13" x2="8" y2="13" />
@@ -28,7 +28,7 @@ const FEATURES = [
     unit: '轮',
     path: '/emotional',
     icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff385c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E8334A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
     ),
@@ -40,7 +40,7 @@ const FEATURES = [
     unit: '次',
     path: '/conflict',
     icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff385c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E8334A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
@@ -56,9 +56,10 @@ const PRICING = [
 export default function Home() {
   const navigate = useNavigate()
   const [credits, setCredits] = useState<number | null>(null)
+  const [balanceError, setBalanceError] = useState(false)
 
   useEffect(() => {
-    fetchBalance().then(setCredits).catch(() => {})
+    fetchBalance().then(setCredits).catch(() => setBalanceError(true))
   }, [])
 
   return (
@@ -66,7 +67,7 @@ export default function Home() {
       <div className="flex flex-col gap-6">
 
         {/* Hero */}
-        <div className="rounded-[20px] p-6 pb-5 bg-gradient-to-br from-[#ff385c] to-[#e00b41] text-white" style={{ boxShadow: SHADOW }}>
+        <div className="rounded-[20px] p-6 pb-5 bg-gradient-to-br from-[#E8334A] to-[#c9102a] text-white" style={{ boxShadow: SHADOW }}>
           <h1 className="text-[28px] font-bold tracking-[-0.44px]">嗨，欢迎回来</h1>
           <p className="text-white/80 text-sm mt-1 mb-5">阿默帮你看清关系中的情绪与沟通</p>
 
@@ -75,8 +76,8 @@ export default function Home() {
             <div>
               <p className="text-white/70 text-xs font-medium">当前余额</p>
               <p className="text-[28px] sm:text-[32px] font-bold leading-tight tracking-[-0.44px]">
-                {credits !== null ? credits : '—'}
-                <span className="text-sm font-medium text-white/70 ml-1.5">credits</span>
+                {credits !== null ? credits : balanceError ? '!' : '—'}
+                <span className="text-sm font-medium text-white/70 ml-1.5">{balanceError ? '加载失败' : 'credits'}</span>
               </p>
             </div>
             {credits !== null && (
@@ -104,7 +105,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-[16px] font-semibold text-[#222]">{f.title}</h3>
                 <p className="text-xs text-[#6a6a6a] mt-1 flex-1">{f.desc}</p>
-                <span className="text-xs text-[#ff385c] font-medium mt-3">{f.credits} credits/{f.unit}</span>
+                <span className="text-xs text-[#E8334A] font-medium mt-3">{f.credits} credits/{f.unit}</span>
               </button>
             ))}
           </div>
@@ -118,7 +119,7 @@ export default function Home() {
               <div key={p.price} className="bg-[#f2f2f2] rounded-[14px] p-3 text-center">
                 <p className="text-[20px] font-bold text-[#222]">{p.credits}</p>
                 <p className="text-xs text-[#6a6a6a]">credits</p>
-                <p className="text-xs font-medium text-[#ff385c] mt-1.5">&yen;{p.price}</p>
+                <p className="text-xs font-medium text-[#E8334A] mt-1.5">&yen;{p.price}</p>
               </div>
             ))}
           </div>

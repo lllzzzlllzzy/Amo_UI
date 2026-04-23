@@ -13,17 +13,19 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(!!getToken())
   const [cards, setCards] = useState<Card[]>([])
   const [cardsLoading, setCardsLoading] = useState(false)
+  const [cardsError, setCardsError] = useState('')
   const [lastResult, setLastResult] = useState<GenerateResult | null>(null)
 
   const loadCards = useCallback(async () => {
     if (!getToken()) return
     setCardsLoading(true)
+    setCardsError('')
     try {
       const data = await fetchCards()
       setCards(data)
     } catch (err: unknown) {
       if (err instanceof Error && err.message === '401') return
-      console.error(err)
+      setCardsError('加载卡密失败，请刷新重试')
     } finally {
       setCardsLoading(false)
     }
@@ -53,13 +55,14 @@ export default function AdminPage() {
         <header className="bg-white border-b border-[#f2f2f2] sticky top-0 z-40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-[#ff385c] text-xl font-bold tracking-[-0.44px]">阿默</span>
+              <span className="text-[#E8334A] text-xl font-bold tracking-[-0.44px]">阿默</span>
               <span className="text-[#6a6a6a] text-sm">管理后台</span>
             </div>
             {authed && (
               <div className="flex items-center gap-3">
                 <button
                   onClick={loadCards}
+                  aria-label="刷新数据"
                   className="w-9 h-9 rounded-full bg-[#f2f2f2] flex items-center justify-center hover:bg-[#e5e5e5] active:scale-95 transition"
                   title="刷新数据"
                 >
@@ -82,6 +85,10 @@ export default function AdminPage() {
         </header>
 
         <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8">
+          {cardsError && (
+            <p className="text-sm text-[#c13515] text-center bg-[#fff0f0] rounded-lg py-2">{cardsError}</p>
+          )}
+
           {/* Stats overview */}
           <StatsBar cards={cards} loading={cardsLoading} />
 

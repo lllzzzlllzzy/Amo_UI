@@ -158,7 +158,7 @@ export default function CardTable({ cards, loading }: Props) {
 
 function UsageBar({ used, total }: { used: number; total: number }) {
   const pct = total > 0 ? Math.round((used / total) * 100) : 0
-  const color = pct >= 80 ? '#ff385c' : pct >= 50 ? '#f59e0b' : '#22c55e'
+  const color = pct >= 80 ? '#E8334A' : pct >= 50 ? '#f59e0b' : '#22c55e'
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-[#e5e5e5] rounded-full overflow-hidden">

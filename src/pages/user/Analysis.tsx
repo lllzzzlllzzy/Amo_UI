@@ -9,6 +9,10 @@ type Phase = 'input' | 'polling' | 'report'
 
 const SHADOW = 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px'
 
+const POLL_INTERVAL_MS = 3000
+const POLL_MAX_ATTEMPTS = 40
+const POLL_MAX_FAILURES = 3
+
 /* ── severity / flag helpers ── */
 const severityColor: Record<string, string> = { low: '#F59E0B', medium: '#EF4444', high: '#7F1D1D' }
 const severityLabel: Record<string, string> = { low: '低', medium: '中', high: '高' }
@@ -86,10 +90,12 @@ export default function Analysis() {
   }
 
   async function doPoll(taskId: string) {
-    for (let i = 0; i < 40; i++) {
-      await new Promise(r => setTimeout(r, 3000))
+    let failures = 0
+    for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
       try {
         const data = await pollAnalysis(taskId)
+        failures = 0
         if (data.status === 'done' && data.report) {
           setReport(data.report)
           setPhase('report')
@@ -101,7 +107,12 @@ export default function Analysis() {
           return
         }
       } catch {
-        /* keep polling */
+        failures++
+        if (failures >= POLL_MAX_FAILURES) {
+          setError('网络异常，请检查连接后重试')
+          setPhase('input')
+          return
+        }
       }
     }
     setError('分析超时，请重试')
@@ -139,7 +150,7 @@ export default function Analysis() {
     return (
       <UserLayout>
         <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-10 h-10 border-3 border-[#f2f2f2] border-t-[#ff385c] rounded-full animate-spin" />
+          <div className="w-10 h-10 border-3 border-[#f2f2f2] border-t-[#E8334A] rounded-full animate-spin" />
           <p className="text-sm text-[#6a6a6a]">{pollMsg}</p>
         </div>
       </UserLayout>
@@ -163,11 +174,11 @@ export default function Analysis() {
                         {seg.speaker === 'self' ? '我' : '对方'}
                       </span>
                       <span className="text-sm text-[#222] font-medium">{seg.emotion}</span>
-                      {isTurning && <span className="text-xs text-[#ff385c] font-medium ml-auto shrink-0">转折点</span>}
+                      {isTurning && <span className="text-xs text-[#E8334A] font-medium ml-auto shrink-0">转折点</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-[#ff385c]" style={{ width: `${seg.intensity * 100}%` }} />
+                        <div className="h-full rounded-full bg-[#E8334A]" style={{ width: `${seg.intensity * 100}%` }} />
                       </div>
                       <span className="text-xs text-[#6a6a6a] w-8 text-right shrink-0">{Math.round(seg.intensity * 100)}%</span>
                     </div>
@@ -176,7 +187,7 @@ export default function Analysis() {
               })}
             </div>
             {report.emotion_trajectory.turning_points.map((tp, i) => (
-              <p key={i} className="text-xs text-[#ff385c] mt-2">转折点 #{tp.index + 1}：{tp.description}</p>
+              <p key={i} className="text-xs text-[#E8334A] mt-2">转折点 #{tp.index + 1}：{tp.description}</p>
             ))}
           </Card>
 
@@ -236,7 +247,7 @@ export default function Analysis() {
                 <div className="text-sm text-[#6a6a6a] whitespace-pre-wrap leading-relaxed">
                   {fa.a}
                   {followupStreaming && i === followupAnswers.length - 1 && (
-                    <span className="inline-block w-1.5 h-4 bg-[#ff385c] rounded-sm ml-0.5 animate-pulse align-middle" />
+                    <span className="inline-block w-1.5 h-4 bg-[#E8334A] rounded-sm ml-0.5 animate-pulse align-middle" />
                   )}
                 </div>
               </div>
@@ -252,7 +263,7 @@ export default function Analysis() {
               <button
                 onClick={handleFollowup}
                 disabled={followupStreaming || !followupQ.trim()}
-                className="sm:w-auto w-full px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#ff385c] transition-colors disabled:opacity-50"
+                className="sm:w-auto w-full px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#E8334A] transition-colors disabled:opacity-50"
               >
                 追问（3 credits）
               </button>
@@ -295,13 +306,13 @@ export default function Analysis() {
                 <fieldset className="flex flex-col gap-2">
                   <legend className="text-sm font-medium text-[#222] mb-1">我的信息</legend>
                   <input placeholder="姓名" value={selfName} onChange={e => setSelfName(e.target.value)} className="input-field" />
-                  <input placeholder="年龄" type="number" value={selfAge} onChange={e => setSelfAge(e.target.value)} className="input-field" />
+                  <input placeholder="年龄" type="number" min={0} max={150} value={selfAge} onChange={e => setSelfAge(e.target.value)} className="input-field" />
                   <input placeholder="补充（性格、背景等）" value={selfNotes} onChange={e => setSelfNotes(e.target.value)} className="input-field" />
                 </fieldset>
                 <fieldset className="flex flex-col gap-2">
                   <legend className="text-sm font-medium text-[#222] mb-1">对方信息</legend>
                   <input placeholder="姓名" value={partnerName} onChange={e => setPartnerName(e.target.value)} className="input-field" />
-                  <input placeholder="年龄" type="number" value={partnerAge} onChange={e => setPartnerAge(e.target.value)} className="input-field" />
+                  <input placeholder="年龄" type="number" min={0} max={150} value={partnerAge} onChange={e => setPartnerAge(e.target.value)} className="input-field" />
                   <input placeholder="补充（性格、背景等）" value={partnerNotes} onChange={e => setPartnerNotes(e.target.value)} className="input-field" />
                 </fieldset>
               </div>
@@ -336,7 +347,7 @@ export default function Analysis() {
                   className="flex-1 border border-[#c1c1c1] rounded-lg px-3 py-2 text-sm text-[#222] outline-none focus:border-[#222] focus:ring-2 focus:ring-[#222]/10 transition resize-none"
                 />
                 {messages.length > 1 && (
-                  <button type="button" onClick={() => removeMsg(i)} className="shrink-0 mt-1 w-8 h-8 flex items-center justify-center text-[#6a6a6a] hover:text-[#c13515] active:scale-95 transition">
+                  <button type="button" onClick={() => removeMsg(i)} aria-label="删除消息" className="shrink-0 mt-1 w-8 h-8 flex items-center justify-center text-[#6a6a6a] hover:text-[#c13515] active:scale-95 transition">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
@@ -354,7 +365,7 @@ export default function Analysis() {
 
         <button
           type="submit"
-          className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] active:scale-[0.98] transition-all"
+          className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all"
         >
           开始分析（20 credits）
         </button>

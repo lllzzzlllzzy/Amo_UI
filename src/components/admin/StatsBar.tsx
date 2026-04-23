@@ -53,7 +53,7 @@ export default function StatsBar({ cards, loading }: Props) {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${usagePct}%`,
-                    backgroundColor: usagePct >= 80 ? '#ff385c' : usagePct >= 50 ? '#f59e0b' : '#22c55e',
+                    backgroundColor: usagePct >= 80 ? '#E8334A' : usagePct >= 50 ? '#f59e0b' : '#22c55e',
                   }}
                 />
               </div>

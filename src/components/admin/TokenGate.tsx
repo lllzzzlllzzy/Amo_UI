@@ -40,7 +40,7 @@ export default function TokenGate({ onSuccess }: Props) {
           {error && <p className="text-xs text-[#c13515]">{error}</p>}
           <button
             type="submit"
-            className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] active:scale-[0.98] transition-all"
+            className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all"
           >
             进入后台
           </button>

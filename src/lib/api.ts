@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:3000'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 // ── Admin Token (sessionStorage) ──────────────────────────────────────────
 const TOKEN_KEY = 'amo_admin_token'
@@ -110,6 +110,10 @@ export function registerUserUnauthorizedHandler(fn: () => void) {
 
 async function userFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const code = getCardCode()
+  if (!code) {
+    onUserUnauthorized?.()
+    throw new Error('401')
+  }
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -268,11 +272,16 @@ export async function streamRequest(
   callbacks: StreamCallbacks,
 ): Promise<void> {
   const code = getCardCode()
+  if (!code) {
+    onUserUnauthorized?.()
+    callbacks.onError('未登录')
+    return
+  }
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${code ?? ''}`,
+      'Authorization': `Bearer ${code}`,
     },
     body: JSON.stringify(body),
   })
@@ -293,7 +302,12 @@ export async function streamRequest(
     return
   }
 
-  const reader = res.body!.getReader()
+  if (!res.body) {
+    callbacks.onError('响应体为空')
+    return
+  }
+
+  const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
   let nextIsError = false
@@ -304,7 +318,7 @@ export async function streamRequest(
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
-    buffer = lines.pop()!
+    buffer = lines.pop() ?? ''
 
     for (const line of lines) {
       if (line === 'event: done') {
@@ -326,7 +340,7 @@ export async function streamRequest(
         try {
           const parsed = JSON.parse(data)
           if (parsed.delta) callbacks.onDelta(parsed.delta)
-        } catch { /* ignore malformed */ }
+        } catch (e) { console.warn('SSE JSON parse error:', e) }
       }
     }
   }

@@ -42,7 +42,7 @@ export default function CardEntry() {
         style={{ boxShadow: 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px' }}
       >
         <div className="mb-6">
-          <h1 className="text-[28px] font-bold text-[#ff385c] tracking-[-0.44px]">阿默</h1>
+          <h1 className="text-[28px] font-bold text-[#E8334A] tracking-[-0.44px]">阿默</h1>
           <p className="text-sm text-[#6a6a6a] mt-1">输入卡密开始使用</p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -58,7 +58,7 @@ export default function CardEntry() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] active:scale-[0.98] transition-all disabled:opacity-50"
+            className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all disabled:opacity-50"
           >
             {loading ? '验证中...' : '验证并进入'}
           </button>

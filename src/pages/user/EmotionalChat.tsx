@@ -97,13 +97,14 @@ export default function EmotionalChat() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
+              aria-label="返回"
               className="w-9 h-9 rounded-full bg-[#f2f2f2] flex items-center justify-center hover:bg-[#e5e5e5] active:scale-95 transition"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <span className="text-[#ff385c] text-lg font-bold tracking-[-0.44px]">情绪疏导</span>
+            <span className="text-[#E8334A] text-lg font-bold tracking-[-0.44px]">情绪疏导</span>
           </div>
           <div className="flex items-center gap-3">
             {credits !== null && (
@@ -122,7 +123,7 @@ export default function EmotionalChat() {
           {messages.length === 0 && (
             <div className="text-center py-16">
               <div className="w-16 h-16 rounded-full bg-[#fff0f3] flex items-center justify-center mx-auto mb-4">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff385c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E8334A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
               </div>
@@ -158,7 +159,8 @@ export default function EmotionalChat() {
           <button
             onClick={handleSend}
             disabled={streaming || !input.trim()}
-            className="shrink-0 w-10 h-10 rounded-full bg-[#222] flex items-center justify-center hover:bg-[#ff385c] active:scale-95 transition-all disabled:opacity-30"
+            aria-label="发送"
+            className="shrink-0 w-10 h-10 rounded-full bg-[#222] flex items-center justify-center hover:bg-[#E8334A] active:scale-95 transition-all disabled:opacity-30"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13" />

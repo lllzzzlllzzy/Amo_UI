@@ -117,7 +117,7 @@ export default function ConflictAnalysis() {
 
             <button
               type="submit"
-              className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] active:scale-[0.98] transition-all"
+              className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all"
             >
               开始分析（8 credits）
             </button>
@@ -131,7 +131,7 @@ export default function ConflictAnalysis() {
             <div className="text-sm text-[#222] leading-relaxed whitespace-pre-wrap">
               {result}
               {phase === 'streaming' && (
-                <span className="inline-block w-1.5 h-4 bg-[#ff385c] rounded-sm ml-0.5 animate-pulse align-middle" />
+                <span className="inline-block w-1.5 h-4 bg-[#E8334A] rounded-sm ml-0.5 animate-pulse align-middle" />
               )}
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function ConflictAnalysis() {
                   <div className="text-sm text-[#6a6a6a] whitespace-pre-wrap leading-relaxed">
                     {fa.a}
                     {followupStreaming && i === followupAnswers.length - 1 && (
-                      <span className="inline-block w-1.5 h-4 bg-[#ff385c] rounded-sm ml-0.5 animate-pulse align-middle" />
+                      <span className="inline-block w-1.5 h-4 bg-[#E8334A] rounded-sm ml-0.5 animate-pulse align-middle" />
                     )}
                   </div>
                 </div>
@@ -165,7 +165,7 @@ export default function ConflictAnalysis() {
                 <button
                   onClick={handleFollowup}
                   disabled={followupStreaming || !followupQ.trim()}
-                  className="sm:w-auto w-full px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#ff385c] transition-colors disabled:opacity-50"
+                  className="sm:w-auto w-full px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#E8334A] transition-colors disabled:opacity-50"
                 >
                   追问（5 credits）
                 </button>

@@ -131,7 +131,7 @@ export default function GenerateForm({ onGenerated, onRefreshList }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#ff385c] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? '生成中...' : '生成卡密'}
         </button>

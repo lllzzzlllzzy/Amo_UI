@@ -1,0 +1,14 @@
+services:
+  amo-ui:
+    build: .
+    container_name: amo-ui
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    networks:
+      - amo-net
+
+networks:
+  amo-net:
+    external: true
+    name: amo_default

@@ -10,6 +10,7 @@ export default function UserLayout({ children }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const [credits, setCredits] = useState<number | null>(null)
+  const [balanceError, setBalanceError] = useState(false)
   const isHome = location.pathname === '/home'
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function UserLayout({ children }: Props) {
   }, [navigate])
 
   useEffect(() => {
-    fetchBalance().then(setCredits).catch(() => {})
+    fetchBalance().then(setCredits).catch(() => setBalanceError(true))
   }, [])
 
   function handleLogout() {
@@ -33,6 +34,7 @@ export default function UserLayout({ children }: Props) {
             {!isHome && (
               <button
                 onClick={() => navigate(-1)}
+                aria-label="返回"
                 className="w-9 h-9 rounded-full bg-[#f2f2f2] flex items-center justify-center hover:bg-[#e5e5e5] active:scale-95 transition"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -40,14 +42,16 @@ export default function UserLayout({ children }: Props) {
                 </svg>
               </button>
             )}
-            <span className="text-[#ff385c] text-lg font-bold tracking-[-0.44px]">阿默</span>
+            <span className="text-[#E8334A] text-lg font-bold tracking-[-0.44px]">阿默</span>
           </div>
           <div className="flex items-center gap-3">
-            {credits !== null && (
+            {credits !== null ? (
               <span className="text-sm text-[#6a6a6a] hidden sm:inline">
                 余额 <span className="font-medium text-[#222]">{credits}</span> credits
               </span>
-            )}
+            ) : balanceError ? (
+              <span className="text-sm text-[#c13515] hidden sm:inline">余额加载失败</span>
+            ) : null}
             <div className="w-px h-4 bg-[#e5e5e5] hidden sm:block" />
             <button onClick={handleLogout} className="text-sm text-[#6a6a6a] hover:text-[#222] active:opacity-70 transition">
               退出
