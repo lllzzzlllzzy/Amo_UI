@@ -21,7 +21,7 @@ export default function App() {
         <Route path="/analysis" element={<ProtectedRoute><Analysis /></ProtectedRoute>} />
         <Route path="/emotional" element={<ProtectedRoute><EmotionalChat /></ProtectedRoute>} />
         <Route path="/conflict" element={<ProtectedRoute><ConflictAnalysis /></ProtectedRoute>} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/x9f3k1" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>
   )

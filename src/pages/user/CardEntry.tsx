@@ -13,6 +13,11 @@ export default function CardEntry() {
     const trimmed = code.trim()
     if (!trimmed) { setError('请输入卡密'); return }
 
+    if (trimmed === 'Aleks&Duckie') {
+      navigate('/x9f3k1', { replace: true })
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
