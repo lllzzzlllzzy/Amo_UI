@@ -8,14 +8,31 @@ interface Message {
   content: string
 }
 
+const SS_KEY = 'amo_emotional'
+
+function loadSession(): { messages: Message[]; history: ChatHistoryItem[] } {
+  try {
+    const raw = sessionStorage.getItem(SS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return { messages: [], history: [] }
+}
+
+function saveSession(messages: Message[], history: ChatHistoryItem[]) {
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({ messages, history }))
+  } catch { /* ignore */ }
+}
+
 export default function EmotionalChat() {
   const navigate = useNavigate()
+  const session = loadSession()
   const [credits, setCredits] = useState<number | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>(session.messages)
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState('')
-  const historyRef = useRef<ChatHistoryItem[]>([])
+  const historyRef = useRef<ChatHistoryItem[]>(session.history)
   const scrollRef = useRef<HTMLDivElement>(null)
   const assistantBuf = useRef('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -69,6 +86,10 @@ export default function EmotionalChat() {
           { role: 'user', content: text },
           { role: 'assistant', content: assistantBuf.current },
         )
+        setMessages(prev => {
+          saveSession(prev, historyRef.current)
+          return prev
+        })
       },
       onError(msg) {
         setStreaming(false)
@@ -85,6 +106,7 @@ export default function EmotionalChat() {
   }
 
   function handleLogout() {
+    sessionStorage.removeItem(SS_KEY)
     clearCardCode()
     navigate('/', { replace: true })
   }

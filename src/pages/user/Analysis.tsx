@@ -13,6 +13,22 @@ const POLL_INTERVAL_MS = 3000
 const POLL_MAX_ATTEMPTS = 40
 const POLL_MAX_FAILURES = 3
 
+const SS_KEY = 'amo_analysis'
+
+function loadSession(): { phase: Phase; report: AnalysisReport | null; followupAnswers: { q: string; a: string }[] } {
+  try {
+    const raw = sessionStorage.getItem(SS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return { phase: 'input', report: null, followupAnswers: [] }
+}
+
+function saveSession(phase: Phase, report: AnalysisReport | null, followupAnswers: { q: string; a: string }[]) {
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({ phase, report, followupAnswers }))
+  } catch { /* ignore */ }
+}
+
 /* ── severity / flag helpers ── */
 const severityColor: Record<string, string> = { low: '#F59E0B', medium: '#EF4444', high: '#7F1D1D' }
 const severityLabel: Record<string, string> = { low: '低', medium: '中', high: '高' }
@@ -23,7 +39,8 @@ const flagLabel: Record<string, string> = {
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 export default function Analysis() {
-  const [phase, setPhase] = useState<Phase>('input')
+  const session = loadSession()
+  const [phase, setPhase] = useState<Phase>(session.phase === 'polling' ? 'input' : session.phase)
 
   /* ── input state ── */
   const [showBg, setShowBg] = useState(false)
@@ -41,9 +58,9 @@ export default function Analysis() {
   const [pollMsg, setPollMsg] = useState('正在分析中...')
 
   /* ── report state ── */
-  const [report, setReport] = useState<AnalysisReport | null>(null)
+  const [report, setReport] = useState<AnalysisReport | null>(session.report)
   const [followupQ, setFollowupQ] = useState('')
-  const [followupAnswers, setFollowupAnswers] = useState<{ q: string; a: string }[]>([])
+  const [followupAnswers, setFollowupAnswers] = useState<{ q: string; a: string }[]>(session.followupAnswers)
   const [followupStreaming, setFollowupStreaming] = useState(false)
   const followupBuf = useRef('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -51,6 +68,11 @@ export default function Analysis() {
   useEffect(() => {
     if (phase === 'report') bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [followupAnswers, phase])
+
+  // persist to sessionStorage whenever key state changes
+  useEffect(() => {
+    saveSession(phase, report, followupAnswers)
+  }, [phase, report, followupAnswers])
 
   /* ── message list helpers ── */
   function updateMsg(i: number, field: 'speaker' | 'text', val: string) {
@@ -67,6 +89,9 @@ export default function Analysis() {
 
     setError('')
     setPhase('polling')
+    setFollowupAnswers([])
+    setReport(null)
+    saveSession('polling', null, [])
     setPollMsg('正在提交...')
 
     const background: AnalysisBackground = {}
@@ -145,6 +170,14 @@ export default function Analysis() {
   /* ══════════════════════════════════════════════════════════════════════ */
   /* RENDER                                                                */
   /* ══════════════════════════════════════════════════════════════════════ */
+
+  function handleReset() {
+    sessionStorage.removeItem(SS_KEY)
+    setPhase('input')
+    setReport(null)
+    setFollowupAnswers([])
+    setError('')
+  }
 
   if (phase === 'polling') {
     return (
@@ -270,6 +303,12 @@ export default function Analysis() {
             </div>
             {error && <p className="text-xs text-[#c13515] mt-2">{error}</p>}
           </Card>
+          <button
+            onClick={handleReset}
+            className="self-center px-6 py-2.5 rounded-lg text-sm font-medium border border-[#c1c1c1] text-[#222] hover:border-[#222] hover:bg-[#f2f2f2] transition"
+          >
+            重新分析
+          </button>
           <div ref={bottomRef} />
         </div>
       </UserLayout>

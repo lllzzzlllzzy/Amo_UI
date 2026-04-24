@@ -6,24 +6,46 @@ type Phase = 'input' | 'streaming' | 'done'
 
 const SHADOW = 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px'
 
+const SS_KEY = 'amo_conflict'
+
+function loadSession(): { phase: Phase; result: string; followupAnswers: { q: string; a: string }[]; description: string; background: string } {
+  try {
+    const raw = sessionStorage.getItem(SS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return { phase: 'input', result: '', followupAnswers: [], description: '', background: '' }
+}
+
+function saveSession(phase: Phase, result: string, followupAnswers: { q: string; a: string }[], description: string, background: string) {
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({ phase, result, followupAnswers, description, background }))
+  } catch { /* ignore */ }
+}
+
 export default function ConflictAnalysis() {
-  const [description, setDescription] = useState('')
-  const [background, setBackground] = useState('')
-  const [phase, setPhase] = useState<Phase>('input')
-  const [result, setResult] = useState('')
+  const session = loadSession()
+  const [description, setDescription] = useState(session.description)
+  const [background, setBackground] = useState(session.background)
+  const [phase, setPhase] = useState<Phase>(session.phase === 'streaming' ? 'input' : session.phase)
+  const [result, setResult] = useState(session.result)
   const [error, setError] = useState('')
   const resultBuf = useRef('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   /* followup state */
   const [followupQ, setFollowupQ] = useState('')
-  const [followupAnswers, setFollowupAnswers] = useState<{ q: string; a: string }[]>([])
+  const [followupAnswers, setFollowupAnswers] = useState<{ q: string; a: string }[]>(session.followupAnswers)
   const [followupStreaming, setFollowupStreaming] = useState(false)
   const followupBuf = useRef('')
 
   useEffect(() => {
     if (phase !== 'input') bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [result, phase, followupAnswers])
+
+  // persist to sessionStorage whenever key state changes
+  useEffect(() => {
+    saveSession(phase, result, followupAnswers, description, background)
+  }, [phase, result, followupAnswers, description, background])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -74,6 +96,7 @@ export default function ConflictAnalysis() {
   }
 
   function handleReset() {
+    sessionStorage.removeItem(SS_KEY)
     setPhase('input')
     setResult('')
     setDescription('')
