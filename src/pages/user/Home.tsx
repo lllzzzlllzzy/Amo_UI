@@ -24,8 +24,8 @@ const FEATURES = [
   {
     title: '情绪疏导',
     desc: '像朋友一样倾听你，帮你理清情绪',
-    credits: 2,
-    unit: '轮',
+    credits: 10,
+    unit: '次',
     path: '/emotional',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E8334A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -36,7 +36,7 @@ const FEATURES = [
   {
     title: '冲突分析',
     desc: '分析争吵双方诉求，给出沟通建议',
-    credits: 8,
+    credits: 10,
     unit: '次',
     path: '/conflict',
     icon: (
@@ -83,7 +83,7 @@ export default function Home() {
             {credits !== null && (
               <div className="sm:text-right text-xs text-white/70 leading-relaxed flex sm:flex-col gap-3 sm:gap-0">
                 <p>可用分析 ~{Math.floor(credits / 20)} 次</p>
-                <p>可用疏导 ~{Math.floor(credits / 2)} 轮</p>
+                <p>可用疏导 ~{Math.floor(credits / 10)} 轮</p>
               </div>
             )}
           </div>
@@ -130,9 +130,9 @@ export default function Home() {
           <h2 className="text-[16px] font-semibold text-[#222] mb-3">使用小贴士</h2>
           <div className="flex flex-col gap-2.5">
             {[
-              { emoji: '💬', text: '聊天记录分析支持追问，每次追问消耗 3 credits' },
-              { emoji: '🫂', text: '情绪疏导支持多轮对话，AI 会记住上下文' },
-              { emoji: '⚡', text: '冲突分析支持追问，每次追问消耗 5 credits' },
+              { emoji: '💬', text: '聊天记录分析消耗 20 credits，追问每次 5 credits' },
+              { emoji: '🫂', text: '情绪疏导首次 10 credits，后续每次 5 credits' },
+              { emoji: '⚡', text: '冲突分析消耗 10 credits，追问每次 5 credits' },
             ].map((tip, i) => (
               <div key={i} className="flex items-start gap-2.5">
                 <span className="text-sm shrink-0">{tip.emoji}</span>

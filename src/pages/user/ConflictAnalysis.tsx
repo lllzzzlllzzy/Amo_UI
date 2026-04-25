@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import UserLayout from '../../components/user/UserLayout'
-import { streamConflictAnalysis, streamConflictFollowup } from '../../lib/api'
+import { streamConflictAnalysis, streamConflictFollowup, ERR_INSUFFICIENT_CREDITS } from '../../lib/api'
 
 type Phase = 'input' | 'streaming' | 'done'
 
@@ -35,6 +35,7 @@ export default function ConflictAnalysis() {
   /* followup state */
   const [followupQ, setFollowupQ] = useState('')
   const [followupAnswers, setFollowupAnswers] = useState<{ q: string; a: string }[]>(session.followupAnswers)
+  const [followupHistory, setFollowupHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [followupStreaming, setFollowupStreaming] = useState(false)
   const followupBuf = useRef('')
 
@@ -56,6 +57,7 @@ export default function ConflictAnalysis() {
     resultBuf.current = ''
     setResult('')
     setFollowupAnswers([])
+    setFollowupHistory([])
 
     await streamConflictAnalysis(description.trim(), background.trim(), {
       onDelta(delta) {
@@ -67,7 +69,7 @@ export default function ConflictAnalysis() {
       },
       onError(msg) {
         setError(msg)
-        setPhase('input')
+        setPhase(msg === ERR_INSUFFICIENT_CREDITS ? 'done' : 'input')
       },
     })
   }
@@ -81,7 +83,7 @@ export default function ConflictAnalysis() {
     followupBuf.current = ''
     setFollowupAnswers(prev => [...prev, { q, a: '' }])
 
-    await streamConflictFollowup(q, result, description.trim() || undefined, {
+    await streamConflictFollowup(q, result, description.trim() || undefined, followupHistory, {
       onDelta(delta) {
         followupBuf.current += delta
         setFollowupAnswers(prev => {
@@ -90,7 +92,14 @@ export default function ConflictAnalysis() {
           return next
         })
       },
-      onDone() { setFollowupStreaming(false) },
+      onDone() {
+        setFollowupHistory(prev => [
+          ...prev,
+          { role: 'user', content: q },
+          { role: 'assistant', content: followupBuf.current },
+        ])
+        setFollowupStreaming(false)
+      },
       onError(msg) { setFollowupStreaming(false); setError(msg) },
     })
   }
@@ -102,6 +111,7 @@ export default function ConflictAnalysis() {
     setDescription('')
     setBackground('')
     setFollowupAnswers([])
+    setFollowupHistory([])
   }
 
   return (
@@ -142,7 +152,7 @@ export default function ConflictAnalysis() {
               type="submit"
               className="w-full bg-[#222] text-white rounded-lg py-3 text-base font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all"
             >
-              开始分析（8 credits）
+              开始分析（10 credits）
             </button>
           </form>
         </div>
@@ -193,7 +203,13 @@ export default function ConflictAnalysis() {
                   追问（5 credits）
                 </button>
               </div>
-              {error && <p className="text-xs text-[#c13515] mt-2">{error}</p>}
+              {error && error !== ERR_INSUFFICIENT_CREDITS && <p className="text-xs text-[#c13515] mt-2">{error}</p>}
+            </div>
+          )}
+
+          {error === ERR_INSUFFICIENT_CREDITS && (
+            <div className="bg-[#fff0f3] border border-[#E8334A]/30 rounded-[16px] px-5 py-4 text-sm text-[#c13515]">
+              额度不足，请购买新卡密后重试
             </div>
           )}
 

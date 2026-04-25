@@ -64,7 +64,7 @@ export default function GenerateForm({ onGenerated, onRefreshList }: Props) {
             min={1}
             max={100}
             value={count}
-            onChange={e => setCount(parseInt(e.target.value, 10))}
+            onChange={e => setCount(parseInt(e.target.value, 10) || 0)}
             className="w-full border border-[#c1c1c1] rounded-lg px-4 py-2.5 text-sm text-[#222] outline-none focus:border-[#222] focus:ring-2 focus:ring-[#222]/10 transition"
           />
         </div>

@@ -1,31 +1,27 @@
 import { useState, useRef, useEffect } from 'react'
 import UserLayout from '../../components/user/UserLayout'
 import {
-  submitAnalysis, pollAnalysis, streamFollowup,
-  type AnalysisBackground, type AnalysisMessage, type AnalysisReport,
+  submitAnalysis, streamFollowup, ERR_INSUFFICIENT_CREDITS,
+  type AnalysisBackground, type AnalysisMessage, type AnalysisReport, type AnalysisSections,
 } from '../../lib/api'
 
-type Phase = 'input' | 'polling' | 'report'
+type Phase = 'input' | 'streaming' | 'report'
 
 const SHADOW = 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px'
 
-const POLL_INTERVAL_MS = 3000
-const POLL_MAX_ATTEMPTS = 40
-const POLL_MAX_FAILURES = 3
-
 const SS_KEY = 'amo_analysis'
 
-function loadSession(): { phase: Phase; report: AnalysisReport | null; followupAnswers: { q: string; a: string }[] } {
+function loadSession(): { phase: Phase; sections: AnalysisSections; followupAnswers: { q: string; a: string }[] } {
   try {
     const raw = sessionStorage.getItem(SS_KEY)
     if (raw) return JSON.parse(raw)
   } catch { /* ignore */ }
-  return { phase: 'input', report: null, followupAnswers: [] }
+  return { phase: 'input', sections: {}, followupAnswers: [] }
 }
 
-function saveSession(phase: Phase, report: AnalysisReport | null, followupAnswers: { q: string; a: string }[]) {
+function saveSession(phase: Phase, sections: AnalysisSections, followupAnswers: { q: string; a: string }[]) {
   try {
-    sessionStorage.setItem(SS_KEY, JSON.stringify({ phase, report, followupAnswers }))
+    sessionStorage.setItem(SS_KEY, JSON.stringify({ phase, sections, followupAnswers }))
   } catch { /* ignore */ }
 }
 
@@ -40,7 +36,7 @@ const flagLabel: Record<string, string> = {
 
 export default function Analysis() {
   const session = loadSession()
-  const [phase, setPhase] = useState<Phase>(session.phase === 'polling' ? 'input' : session.phase)
+  const [phase, setPhase] = useState<Phase>(session.phase === 'streaming' ? 'input' : session.phase)
 
   /* ── input state ── */
   const [showBg, setShowBg] = useState(false)
@@ -54,25 +50,22 @@ export default function Analysis() {
   const [messages, setMessages] = useState<AnalysisMessage[]>([{ speaker: 'self', text: '' }])
   const [error, setError] = useState('')
 
-  /* ── polling state ── */
-  const [pollMsg, setPollMsg] = useState('正在分析中...')
-
-  /* ── report state ── */
-  const [report, setReport] = useState<AnalysisReport | null>(session.report)
+  /* ── streaming / report state ── */
+  const [sections, setSections] = useState<AnalysisSections>(session.sections)
   const [followupQ, setFollowupQ] = useState('')
   const [followupAnswers, setFollowupAnswers] = useState<{ q: string; a: string }[]>(session.followupAnswers)
+  const [followupHistory, setFollowupHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [followupStreaming, setFollowupStreaming] = useState(false)
   const followupBuf = useRef('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (phase === 'report') bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (phase !== 'input') bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [followupAnswers, phase])
 
-  // persist to sessionStorage whenever key state changes
   useEffect(() => {
-    saveSession(phase, report, followupAnswers)
-  }, [phase, report, followupAnswers])
+    saveSession(phase, sections, followupAnswers)
+  }, [phase, sections, followupAnswers])
 
   /* ── message list helpers ── */
   function updateMsg(i: number, field: 'speaker' | 'text', val: string) {
@@ -88,11 +81,10 @@ export default function Analysis() {
     if (validMsgs.length === 0) { setError('请至少输入一条对话'); return }
 
     setError('')
-    setPhase('polling')
+    setSections({})
     setFollowupAnswers([])
-    setReport(null)
-    saveSession('polling', null, [])
-    setPollMsg('正在提交...')
+    setFollowupHistory([])
+    setPhase('streaming')
 
     const background: AnalysisBackground = {}
     if (showBg) {
@@ -101,51 +93,34 @@ export default function Analysis() {
       if (relationship) background.relationship = relationship
     }
 
-    try {
-      const { task_id } = await submitAnalysis({
+    await submitAnalysis(
+      {
         background: Object.keys(background).length > 0 ? background : undefined,
         messages: validMsgs,
-      })
-      setPollMsg('分析中，请稍候...')
-      await doPoll(task_id)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '提交失败')
-      setPhase('input')
-    }
-  }
-
-  async function doPoll(taskId: string) {
-    let failures = 0
-    for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
-      try {
-        const data = await pollAnalysis(taskId)
-        failures = 0
-        if (data.status === 'done' && data.report) {
-          setReport(data.report)
-          setPhase('report')
-          return
-        }
-        if (data.status === 'failed') {
-          setError(data.error || '分析失败')
-          setPhase('input')
-          return
-        }
-      } catch {
-        failures++
-        if (failures >= POLL_MAX_FAILURES) {
-          setError('网络异常，请检查连接后重试')
-          setPhase('input')
-          return
-        }
-      }
-    }
-    setError('分析超时，请重试')
-    setPhase('input')
+      },
+      {
+        onSection(name, data) {
+          setSections(prev => ({ ...prev, [name]: data }))
+        },
+        onDone() { setPhase('report') },
+        onError(msg) {
+          setError(msg)
+          setPhase(msg === ERR_INSUFFICIENT_CREDITS ? 'report' : 'input')
+        },
+      },
+    )
   }
 
   /* ── followup ── */
+  // followup needs the full report object; assemble it from sections
+  function assembleReport(): AnalysisReport | null {
+    const { emotion_trajectory, communication_patterns, risk_flags, core_needs, suggestions } = sections
+    if (!emotion_trajectory || !communication_patterns || !risk_flags || !core_needs || !suggestions) return null
+    return { emotion_trajectory, communication_patterns, risk_flags, core_needs, suggestions }
+  }
+
   async function handleFollowup() {
+    const report = assembleReport()
     if (!followupQ.trim() || !report || followupStreaming) return
     const q = followupQ.trim()
     setFollowupQ('')
@@ -153,7 +128,7 @@ export default function Analysis() {
     followupBuf.current = ''
     setFollowupAnswers(prev => [...prev, { q, a: '' }])
 
-    await streamFollowup(q, report, {
+    await streamFollowup(q, report, followupHistory, {
       onDelta(delta) {
         followupBuf.current += delta
         setFollowupAnswers(prev => {
@@ -162,153 +137,174 @@ export default function Analysis() {
           return next
         })
       },
-      onDone() { setFollowupStreaming(false) },
+      onDone() {
+        setFollowupHistory(prev => [
+          ...prev,
+          { role: 'user', content: q },
+          { role: 'assistant', content: followupBuf.current },
+        ])
+        setFollowupStreaming(false)
+      },
       onError(msg) { setFollowupStreaming(false); setError(msg) },
     })
   }
 
-  /* ══════════════════════════════════════════════════════════════════════ */
-  /* RENDER                                                                */
-  /* ══════════════════════════════════════════════════════════════════════ */
-
   function handleReset() {
     sessionStorage.removeItem(SS_KEY)
     setPhase('input')
-    setReport(null)
+    setSections({})
     setFollowupAnswers([])
+    setFollowupHistory([])
     setError('')
   }
 
-  if (phase === 'polling') {
-    return (
-      <UserLayout>
-        <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-10 h-10 border-3 border-[#f2f2f2] border-t-[#E8334A] rounded-full animate-spin" />
-          <p className="text-sm text-[#6a6a6a]">{pollMsg}</p>
-        </div>
-      </UserLayout>
-    )
-  }
+  /* ══════════════════════════════════════════════════════════════════════ */
+  /* RENDER — streaming / report phase                                     */
+  /* ══════════════════════════════════════════════════════════════════════ */
 
-  if (phase === 'report' && report) {
+  if (phase === 'streaming' || phase === 'report') {
+    const { emotion_trajectory, communication_patterns, risk_flags, core_needs, suggestions } = sections
+    const isDone = phase === 'report'
+
     return (
       <UserLayout>
         <div className="flex flex-col gap-5">
           {/* 1. Emotion Trajectory */}
-          <Card title="情绪轨迹">
-            <p className="text-sm text-[#6a6a6a] mb-3">{report.emotion_trajectory.summary}</p>
-            <div className="flex flex-col gap-2">
-              {report.emotion_trajectory.segments.map((seg, i) => {
-                const isTurning = report.emotion_trajectory.turning_points.some(tp => tp.index === seg.index)
-                return (
-                  <div key={i} className={`p-2.5 rounded-lg ${isTurning ? 'bg-[#fff0f3]' : 'bg-[#f2f2f2]'}`}>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-[14px] shrink-0 ${seg.speaker === 'self' ? 'bg-[#222] text-white' : 'bg-white text-[#222] border border-[#c1c1c1]'}`}>
-                        {seg.speaker === 'self' ? '我' : '对方'}
-                      </span>
-                      <span className="text-sm text-[#222] font-medium">{seg.emotion}</span>
-                      {isTurning && <span className="text-xs text-[#E8334A] font-medium ml-auto shrink-0">转折点</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-[#E8334A]" style={{ width: `${seg.intensity * 100}%` }} />
+          {emotion_trajectory ? (
+            <Card title="情绪轨迹">
+              <p className="text-sm text-[#6a6a6a] mb-3">{emotion_trajectory.summary}</p>
+              <div className="flex flex-col gap-2">
+                {emotion_trajectory.segments.map((seg, i) => {
+                  const isTurning = emotion_trajectory.turning_points.some(tp => tp.index === seg.index)
+                  return (
+                    <div key={i} className={`p-2.5 rounded-lg ${isTurning ? 'bg-[#fff0f3]' : 'bg-[#f2f2f2]'}`}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-[14px] shrink-0 ${seg.speaker === 'self' ? 'bg-[#222] text-white' : 'bg-white text-[#222] border border-[#c1c1c1]'}`}>
+                          {seg.speaker === 'self' ? '我' : '对方'}
+                        </span>
+                        <span className="text-sm text-[#222] font-medium">{seg.emotion}</span>
+                        {isTurning && <span className="text-xs text-[#E8334A] font-medium ml-auto shrink-0">转折点</span>}
                       </div>
-                      <span className="text-xs text-[#6a6a6a] w-8 text-right shrink-0">{Math.round(seg.intensity * 100)}%</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-[#E8334A]" style={{ width: `${seg.intensity * 100}%` }} />
+                        </div>
+                        <span className="text-xs text-[#6a6a6a] w-8 text-right shrink-0">{Math.round(seg.intensity * 100)}%</span>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-            {report.emotion_trajectory.turning_points.map((tp, i) => (
-              <p key={i} className="text-xs text-[#E8334A] mt-2">转折点 #{tp.index + 1}：{tp.description}</p>
-            ))}
-          </Card>
+                  )
+                })}
+              </div>
+              {emotion_trajectory.turning_points.map((tp, i) => (
+                <p key={i} className="text-xs text-[#E8334A] mt-2">转折点 #{tp.index + 1}：{tp.description}</p>
+              ))}
+            </Card>
+          ) : !isDone && <SkeletonCard progress="正在分析情绪轨迹（1/5）" />}
 
           {/* 2. Communication Patterns */}
-          <Card title="沟通模式">
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Tag label={`我：${report.communication_patterns.self_attachment_style}`} />
-              <Tag label={`对方：${report.communication_patterns.partner_attachment_style}`} />
-              {report.communication_patterns.failure_modes.map(m => (
-                <Tag key={m} label={m} secondary />
-              ))}
-            </div>
-            <p className="text-sm text-[#6a6a6a] mb-2">{report.communication_patterns.power_dynamic}</p>
-            <p className="text-sm text-[#222]">{report.communication_patterns.summary}</p>
-          </Card>
+          {communication_patterns ? (
+            <Card title="沟通模式">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <Tag label={`我：${communication_patterns.self_attachment_style}`} />
+                <Tag label={`对方：${communication_patterns.partner_attachment_style}`} />
+                {communication_patterns.failure_modes.map(m => (
+                  <Tag key={m} label={m} secondary />
+                ))}
+              </div>
+              <p className="text-sm text-[#6a6a6a] mb-2">{communication_patterns.power_dynamic}</p>
+              <p className="text-sm text-[#222]">{communication_patterns.summary}</p>
+            </Card>
+          ) : !isDone && emotion_trajectory && <SkeletonCard progress="正在分析沟通模式（2/5）" />}
 
           {/* 3. Risk Flags */}
-          {report.risk_flags.length > 0 && (
+          {risk_flags ? (
             <Card title="风险标注">
+              {risk_flags.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {risk_flags.map((flag, i) => <RiskFlagItem key={i} flag={flag} />)}
+                </div>
+              ) : (
+                <p className="text-sm text-[#6a6a6a]">未检测到明显风险</p>
+              )}
+            </Card>
+          ) : !isDone && communication_patterns && <SkeletonCard progress="正在分析风险标注（3/5）" />}
+
+          {/* 4. Core Needs */}
+          {core_needs ? (
+            <Card title="核心诉求">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <NeedColumn label="我" surface={core_needs.self_surface} deep={core_needs.self_deep} />
+                <NeedColumn label="对方" surface={core_needs.partner_surface} deep={core_needs.partner_deep} />
+              </div>
+            </Card>
+          ) : !isDone && risk_flags && <SkeletonCard progress="正在分析核心诉求（4/5）" />}
+
+          {/* 5. Suggestions */}
+          {suggestions ? (
+            <Card title="建议">
               <div className="flex flex-col gap-3">
-                {report.risk_flags.map((flag, i) => (
-                  <RiskFlagItem key={i} flag={flag} />
+                {suggestions.map((s, i) => (
+                  <div key={i} className="bg-[#f2f2f2] rounded-[14px] p-4">
+                    <p className="text-xs text-[#6a6a6a] mb-2">{s.context}</p>
+                    {s.original && (
+                      <p className="text-sm text-[#6a6a6a] line-through mb-1">"{s.original}"</p>
+                    )}
+                    <p className="text-sm text-[#222] font-medium mb-1">"{s.rewrite}"</p>
+                    <p className="text-xs text-[#6a6a6a]">{s.rationale}</p>
+                  </div>
                 ))}
               </div>
             </Card>
-          )}
+          ) : !isDone && core_needs && <SkeletonCard progress="正在生成建议（5/5）" />}
 
-          {/* 4. Core Needs */}
-          <Card title="核心诉求">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NeedColumn label="我" surface={report.core_needs.self_surface} deep={report.core_needs.self_deep} />
-              <NeedColumn label="对方" surface={report.core_needs.partner_surface} deep={report.core_needs.partner_deep} />
-            </div>
-          </Card>
-
-          {/* 5. Suggestions */}
-          <Card title="建议">
-            <div className="flex flex-col gap-3">
-              {report.suggestions.map((s, i) => (
-                <div key={i} className="bg-[#f2f2f2] rounded-[14px] p-4">
-                  <p className="text-xs text-[#6a6a6a] mb-2">{s.context}</p>
-                  {s.original && (
-                    <p className="text-sm text-[#6a6a6a] line-through mb-1">"{s.original}"</p>
-                  )}
-                  <p className="text-sm text-[#222] font-medium mb-1">"{s.rewrite}"</p>
-                  <p className="text-xs text-[#6a6a6a]">{s.rationale}</p>
+          {/* Followup — only after done */}
+          {isDone && (
+            <Card title="追问">
+              {followupAnswers.map((fa, i) => (
+                <div key={i} className="mb-4">
+                  <p className="text-sm font-medium text-[#222] mb-1">Q: {fa.q}</p>
+                  <div className="text-sm text-[#6a6a6a] whitespace-pre-wrap leading-relaxed">
+                    {fa.a}
+                    {followupStreaming && i === followupAnswers.length - 1 && (
+                      <span className="inline-block w-1.5 h-4 bg-[#E8334A] rounded-sm ml-0.5 animate-pulse align-middle" />
+                    )}
+                  </div>
                 </div>
               ))}
-            </div>
-          </Card>
-
-          {/* Followup */}
-          <Card title="追问">
-            {followupAnswers.map((fa, i) => (
-              <div key={i} className="mb-4">
-                <p className="text-sm font-medium text-[#222] mb-1">Q: {fa.q}</p>
-                <div className="text-sm text-[#6a6a6a] whitespace-pre-wrap leading-relaxed">
-                  {fa.a}
-                  {followupStreaming && i === followupAnswers.length - 1 && (
-                    <span className="inline-block w-1.5 h-4 bg-[#E8334A] rounded-sm ml-0.5 animate-pulse align-middle" />
-                  )}
-                </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={followupQ}
+                  onChange={e => setFollowupQ(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleFollowup()}
+                  placeholder="对报告有疑问？输入追问..."
+                  className="flex-1 border border-[#c1c1c1] rounded-lg px-4 py-2.5 text-sm text-[#222] outline-none focus:border-[#222] focus:ring-2 focus:ring-[#222]/10 transition"
+                />
+                <button
+                  onClick={handleFollowup}
+                  disabled={followupStreaming || !followupQ.trim()}
+                  className="sm:w-auto w-full px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#E8334A] transition-colors disabled:opacity-50"
+                >
+                  追问（5 credits）
+                </button>
               </div>
-            ))}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                value={followupQ}
-                onChange={e => setFollowupQ(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleFollowup()}
-                placeholder="对报告有疑问？输入追问..."
-                className="flex-1 border border-[#c1c1c1] rounded-lg px-4 py-2.5 text-sm text-[#222] outline-none focus:border-[#222] focus:ring-2 focus:ring-[#222]/10 transition"
-              />
-              <button
-                onClick={handleFollowup}
-                disabled={followupStreaming || !followupQ.trim()}
-                className="sm:w-auto w-full px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#E8334A] transition-colors disabled:opacity-50"
-              >
-                追问（3 credits）
-              </button>
+              {error && <p className="text-xs text-[#c13515] mt-2">{error}</p>}
+            </Card>
+          )}
+
+          {error === ERR_INSUFFICIENT_CREDITS && (
+            <div className="bg-[#fff0f3] border border-[#E8334A]/30 rounded-[16px] px-5 py-4 text-sm text-[#c13515]">
+              额度不足，请购买新卡密后重试
             </div>
-            {error && <p className="text-xs text-[#c13515] mt-2">{error}</p>}
-          </Card>
-          <button
-            onClick={handleReset}
-            className="self-center px-6 py-2.5 rounded-lg text-sm font-medium border border-[#c1c1c1] text-[#222] hover:border-[#222] hover:bg-[#f2f2f2] transition"
-          >
-            重新分析
-          </button>
+          )}
+
+          {isDone && (
+            <button
+              onClick={handleReset}
+              className="self-center px-6 py-2.5 rounded-lg text-sm font-medium border border-[#c1c1c1] text-[#222] hover:border-[#222] hover:bg-[#f2f2f2] transition"
+            >
+              重新分析
+            </button>
+          )}
           <div ref={bottomRef} />
         </div>
       </UserLayout>
@@ -319,18 +315,14 @@ export default function Analysis() {
   return (
     <UserLayout>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* Background toggle */}
-        <div
-          className="bg-white rounded-[20px] p-6"
-          style={{ boxShadow: SHADOW }}
-        >
+        <div className="bg-white rounded-[20px] p-6" style={{ boxShadow: SHADOW }}>
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-[22px] font-semibold text-[#222] tracking-[-0.44px]">聊天记录分析</h2>
           </div>
           <p className="text-sm text-[#6a6a6a]">输入你们的对话，AI 会深度分析情绪和沟通模式</p>
+          <p className="text-xs text-[#E8334A] mt-2">分析需要约 1-2 分钟，请耐心等待</p>
         </div>
 
-        {/* Background info */}
         <div className="bg-white rounded-[20px] p-6" style={{ boxShadow: SHADOW }}>
           <button type="button" onClick={() => setShowBg(!showBg)} className="flex items-center gap-2 text-sm font-medium text-[#222]">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a6a6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -360,7 +352,6 @@ export default function Analysis() {
           )}
         </div>
 
-        {/* Messages */}
         <div className="bg-white rounded-[20px] p-6" style={{ boxShadow: SHADOW }}>
           <h3 className="text-[18px] font-semibold text-[#222] tracking-[-0.18px] mb-3">对话内容</h3>
           <div className="flex flex-col gap-2.5">
@@ -420,6 +411,21 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     <div className="bg-white rounded-[20px] p-6" style={{ boxShadow: SHADOW }}>
       <h3 className="text-[20px] font-semibold text-[#222] tracking-[-0.18px] mb-3">{title}</h3>
       {children}
+    </div>
+  )
+}
+
+function SkeletonCard({ progress }: { progress?: string }) {
+  return (
+    <div className="bg-white rounded-[20px] p-6 animate-pulse" style={{ boxShadow: SHADOW }}>
+      {progress && <p className="text-sm text-[#6a6a6a] mb-3">{progress}</p>}
+      <div className="h-4 bg-[#f2f2f2] rounded-full w-1/3 mb-4" />
+      <div className="flex flex-col gap-2.5">
+        <div className="h-3 bg-[#f2f2f2] rounded-full w-full" />
+        <div className="h-3 bg-[#f2f2f2] rounded-full w-4/5" />
+        <div className="h-3 bg-[#f2f2f2] rounded-full w-full" />
+        <div className="h-3 bg-[#f2f2f2] rounded-full w-2/3" />
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ChatBubble from '../../components/user/ChatBubble'
-import { fetchBalance, clearCardCode, registerUserUnauthorizedHandler, streamEmotionalChat, type ChatHistoryItem } from '../../lib/api'
+import { fetchBalance, clearCardCode, registerUserUnauthorizedHandler, streamEmotionalChat, ERR_INSUFFICIENT_CREDITS, type ChatHistoryItem } from '../../lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -32,6 +32,7 @@ export default function EmotionalChat() {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState('')
+  const [isFirstRound, setIsFirstRound] = useState(session.history.length === 0)
   const historyRef = useRef<ChatHistoryItem[]>(session.history)
   const scrollRef = useRef<HTMLDivElement>(null)
   const assistantBuf = useRef('')
@@ -72,6 +73,7 @@ export default function EmotionalChat() {
 
     await streamEmotionalChat(text, historyRef.current, {
       onDelta(delta) {
+        console.log('[EmotionalChat] onDelta:', JSON.stringify(delta))
         assistantBuf.current += delta
         setMessages(prev => {
           const next = [...prev]
@@ -81,7 +83,9 @@ export default function EmotionalChat() {
         scrollToBottom()
       },
       onDone() {
+        console.log('[EmotionalChat] onDone, fullReply length:', assistantBuf.current.length)
         setStreaming(false)
+        setIsFirstRound(false)
         historyRef.current.push(
           { role: 'user', content: text },
           { role: 'assistant', content: assistantBuf.current },
@@ -92,7 +96,11 @@ export default function EmotionalChat() {
         })
       },
       onError(msg) {
+        console.error('[EmotionalChat] onError:', msg)
         setStreaming(false)
+        if (!assistantBuf.current) {
+          setMessages(prev => prev.slice(0, -1))
+        }
         setError(msg)
       },
     })
@@ -151,7 +159,7 @@ export default function EmotionalChat() {
               </div>
               <p className="text-[#222] font-medium">有什么想聊的吗？</p>
               <p className="text-sm text-[#6a6a6a] mt-1">我会像朋友一样倾听你的感受</p>
-              <p className="text-xs text-[#6a6a6a] mt-3">每轮对话消耗 2 credits</p>
+              <p className="text-xs text-[#6a6a6a] mt-3">首轮消耗 10 credits，后续每轮 5 credits</p>
             </div>
           )}
           {messages.map((m, i) => (
@@ -162,7 +170,12 @@ export default function EmotionalChat() {
               streaming={streaming && i === messages.length - 1 && m.role === 'assistant'}
             />
           ))}
-          {error && <p className="text-xs text-[#c13515] text-center mt-2">{error}</p>}
+          {error && error !== ERR_INSUFFICIENT_CREDITS && <p className="text-xs text-[#c13515] text-center mt-2">{error}</p>}
+          {error === ERR_INSUFFICIENT_CREDITS && (
+            <div className="bg-[#fff0f3] border border-[#E8334A]/30 rounded-[16px] px-5 py-4 text-sm text-[#c13515] text-center">
+              额度不足，请购买新卡密后重试
+            </div>
+          )}
         </div>
       </div>
 
@@ -181,13 +194,9 @@ export default function EmotionalChat() {
           <button
             onClick={handleSend}
             disabled={streaming || !input.trim()}
-            aria-label="发送"
-            className="shrink-0 w-10 h-10 rounded-full bg-[#222] flex items-center justify-center hover:bg-[#E8334A] active:scale-95 transition-all disabled:opacity-30"
+            className="shrink-0 px-4 py-2.5 bg-[#222] text-white rounded-lg text-sm font-medium hover:bg-[#E8334A] active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+            发送（{isFirstRound ? '10' : '5'} credits）
           </button>
         </div>
       </div>
